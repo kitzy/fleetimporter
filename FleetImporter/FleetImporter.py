@@ -976,24 +976,11 @@ class FleetImporter(Processor):
             "",
         ]
 
-        # Show latest update if we have that info
-        if latest_package:
-            lines.extend(
-                [
-                    "### Latest Update",
-                    "",
-                    f"**{latest_package['title']} {latest_package['version']}** was just added to this PR.",
-                    "",
-                ]
-            )
-
         # List all packages in this PR
         if all_packages:
             lines.extend(
                 [
-                    "---",
-                    "",
-                    "### 📦 All Packages in This PR",
+                    "### 📦 Packages in This PR",
                     "",
                 ]
             )
