@@ -20,5 +20,7 @@ Process:
     github_token: "%FLEET_GITOPS_GITHUB_TOKEN%"
     s3_retention_versions: 3
     self_service: true
+    categories:
+    - Developer Tools
     icon: Claude.png
   Processor: com.github.kitzy.FleetImporter/FleetImporter

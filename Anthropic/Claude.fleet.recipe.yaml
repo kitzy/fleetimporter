@@ -13,5 +13,7 @@ Process:
     fleet_api_token: "%FLEET_API_TOKEN%"
     team_id: "%FLEET_TEAM_ID%"
     self_service: true
+    categories:
+    - Developer Tools
     icon: Claude.png
   Processor: com.github.kitzy.FleetImporter/FleetImporter
