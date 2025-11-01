@@ -472,7 +472,6 @@ class FleetImporter(Processor):
                 pre_install_query,
                 post_install_script,
                 icon_relative_path,
-                categories,
             )
 
             # Update team YAML file to reference the package
@@ -486,6 +485,7 @@ class FleetImporter(Processor):
                 automatic_install,
                 labels_include_any,
                 labels_exclude_any,
+                categories,
             )
 
             # Create Git branch, commit, and push
@@ -974,7 +974,6 @@ class FleetImporter(Processor):
         pre_install_query: str,
         post_install_script: str,
         icon_path: str = None,
-        categories: list[str] = None,
     ) -> str:
         """Create software package YAML file in lib/ directory.
 
@@ -989,7 +988,6 @@ class FleetImporter(Processor):
             pre_install_query: Pre-install query
             post_install_script: Post-install script
             icon_path: Relative path to icon file in GitOps repo (e.g., ../icons/claude.png)
-            categories: List of category names for grouping software
 
         Returns:
             Relative path to created package YAML file (for use in team YAML)
@@ -1007,10 +1005,6 @@ class FleetImporter(Processor):
             "url": cloudfront_url,
             "hash_sha256": hash_sha256,
         }
-
-        # Add optional categories if provided
-        if categories:
-            package_entry["categories"] = categories
 
         # Add optional icon path if provided
         if icon_path:
@@ -1043,6 +1037,7 @@ class FleetImporter(Processor):
         automatic_install: bool,
         labels_include_any: list,
         labels_exclude_any: list,
+        categories: list,
     ):
         """Update team YAML file to include software package reference.
 
@@ -1054,6 +1049,7 @@ class FleetImporter(Processor):
             automatic_install: Automatic install flag (setup_experience in Fleet)
             labels_include_any: Include labels
             labels_exclude_any: Exclude labels
+            categories: List of category names for grouping software
 
         Raises:
             ProcessorError: If YAML update fails
@@ -1082,6 +1078,8 @@ class FleetImporter(Processor):
         }
 
         # Add optional fields according to Fleet docs
+        if categories:
+            new_entry["categories"] = categories
         if automatic_install:
             new_entry["setup_experience"] = True
         if labels_include_any:
