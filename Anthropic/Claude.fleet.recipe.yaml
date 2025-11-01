@@ -14,4 +14,4 @@ Process:
     team_id: "%FLEET_TEAM_ID%"
     self_service: true
     icon: Claude.png
-  Processor: /Users/kitzy/Code/fleetimporter/FleetImporter/FleetImporter
+  Processor: com.github.kitzy.FleetImporter/FleetImporter
