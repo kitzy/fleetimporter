@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import io
 import json
 import os
@@ -18,17 +17,38 @@ import re
 import shutil
 import ssl
 import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
-import xml.etree.ElementTree as ET
-from datetime import datetime
 from pathlib import Path
 
 import certifi
 import yaml
 from autopkglib import Processor, ProcessorError
+
+# Try to import boto3, install if not available
+try:
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError
+except ImportError:
+    # Attempt to install boto3
+    print("boto3 not found, installing...")
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet", "boto3"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        import boto3
+        from botocore.exceptions import ClientError, NoCredentialsError
+
+        print("boto3 installed successfully")
+    except Exception as e:
+        print(f"Warning: Could not install boto3: {e}")
+        print("S3 operations will not be available")
+        boto3 = None
 
 # Constants for improved readability
 DEFAULT_PLATFORM = "darwin"
@@ -499,107 +519,6 @@ class FleetImporter(Processor):
         # Remove leading/trailing hyphens
         return slug.strip("-")
 
-    def _aws_sign_v4(
-        self,
-        method: str,
-        url: str,
-        region: str,
-        service: str,
-        access_key: str,
-        secret_key: str,
-        payload: bytes = b"",
-        headers: dict = None,
-    ) -> dict:
-        """Create AWS Signature Version 4 signed headers.
-
-        Args:
-            method: HTTP method (GET, PUT, DELETE, etc.)
-            url: Full URL to sign
-            region: AWS region
-            service: AWS service name (e.g., 's3')
-            access_key: AWS access key ID
-            secret_key: AWS secret access key
-            payload: Request payload (for PUT requests)
-            headers: Additional headers to include
-
-        Returns:
-            Dictionary of headers including Authorization header
-        """
-        # Parse URL
-        parsed = urllib.parse.urlparse(url)
-        host = parsed.netloc
-        # Canonical path: each segment should be URI-encoded, but not the slashes
-        # urllib.parse.quote with safe='/' does this correctly
-        path = urllib.parse.quote(parsed.path or "/", safe="/")
-
-        # Canonical query string: sort parameters and encode both keys and values
-        if parsed.query:
-            # Parse query parameters
-            params = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
-            # Sort by parameter name, then by value
-            params.sort()
-            # Encode each parameter (key=value format)
-            canonical_query = "&".join(
-                f"{urllib.parse.quote(k, safe='')}={urllib.parse.quote(str(v), safe='')}"
-                for k, v in params
-            )
-        else:
-            canonical_query = ""
-
-        # Create canonical request
-        t = datetime.utcnow()
-        amz_date = t.strftime("%Y%m%dT%H%M%SZ")
-        date_stamp = t.strftime("%Y%m%d")
-
-        # Default headers
-        request_headers = {
-            "host": host,
-            "x-amz-date": amz_date,
-            "x-amz-content-sha256": hashlib.sha256(payload).hexdigest(),
-        }
-        if headers:
-            request_headers.update(headers)
-
-        # Create canonical headers
-        canonical_headers = (
-            "\n".join(f"{k.lower()}:{v}" for k, v in sorted(request_headers.items()))
-            + "\n"
-        )
-        signed_headers = ";".join(sorted(k.lower() for k in request_headers.keys()))
-
-        # Create canonical request
-        payload_hash = hashlib.sha256(payload).hexdigest()
-        canonical_request = f"{method}\n{path}\n{canonical_query}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
-
-        # Create string to sign
-        algorithm = "AWS4-HMAC-SHA256"
-        credential_scope = f"{date_stamp}/{region}/{service}/aws4_request"
-        string_to_sign = f"{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode()).hexdigest()}"
-
-        # Calculate signature
-        def sign(key: bytes, msg: str) -> bytes:
-            return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
-
-        # Create signing key
-        k_date = sign(f"AWS4{secret_key}".encode("utf-8"), date_stamp)
-        k_region = sign(k_date, region)
-        k_service = sign(k_region, service)
-        k_signing = sign(k_service, "aws4_request")
-
-        # Calculate final signature
-        signature = hmac.new(
-            k_signing, string_to_sign.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-
-        # Create authorization header
-        authorization_header = (
-            f"{algorithm} Credential={access_key}/{credential_scope}, "
-            f"SignedHeaders={signed_headers}, Signature={signature}"
-        )
-
-        request_headers["Authorization"] = authorization_header
-        return request_headers
-
     def _get_autopkg_pref(self, key: str, default=None):
         """Get a preference value from AutoPkg preferences or environment variables.
 
@@ -658,6 +577,34 @@ class FleetImporter(Processor):
 
         return access_key, secret_key, region
 
+    def _get_s3_client(self):
+        """Get configured boto3 S3 client.
+
+        Returns:
+            boto3 S3 client
+
+        Raises:
+            ProcessorError: If boto3 is not available or credentials are missing
+        """
+        if boto3 is None:
+            raise ProcessorError(
+                "boto3 is required for S3 operations but could not be imported or installed. "
+                "Please install it manually: pip install boto3"
+            )
+
+        access_key, secret_key, region = self._get_aws_credentials()
+
+        try:
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=region,
+            )
+            return s3_client
+        except Exception as e:
+            raise ProcessorError(f"Failed to create S3 client: {e}")
+
     def _upload_to_s3(
         self, bucket: str, software_title: str, version: str, pkg_path: Path
     ) -> str:
@@ -676,82 +623,44 @@ class FleetImporter(Processor):
             ProcessorError: If upload fails
         """
         try:
-            # Get AWS credentials
-            access_key, secret_key, region = self._get_aws_credentials()
+            # Get S3 client
+            s3_client = self._get_s3_client()
 
             # Use AutoPkg standard naming: software/Title/Title-Version.pkg
             extension = pkg_path.suffix
             s3_key = f"software/{software_title}/{software_title}-{version}{extension}"
 
-            # Construct S3 URL (do not pre-encode - signing function will handle encoding)
-            url = f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}"
-
-            # Check if package already exists in S3 using HEAD request
-            head_headers = self._aws_sign_v4(
-                "HEAD", url, region, "s3", access_key, secret_key
-            )
-            head_request = urllib.request.Request(
-                url, headers=head_headers, method="HEAD"
-            )
+            # Check if package already exists in S3
             try:
-                with urllib.request.urlopen(
-                    head_request, timeout=30, context=self._get_ssl_context()
-                ) as head_response:
-                    if head_response.getcode() == 200:
-                        self.output(
-                            f"Package {software_title} {version} already exists in S3 at {s3_key}. Skipping upload."
-                        )
-                        return s3_key
-            except urllib.error.HTTPError as e:
-                if e.code == 404:
+                s3_client.head_object(Bucket=bucket, Key=s3_key)
+                self.output(
+                    f"Package {software_title} {version} already exists in S3 at {s3_key}. Skipping upload."
+                )
+                return s3_key
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "404":
                     self.output("Package not found in S3, proceeding with upload")
                 else:
-                    # Some other error occurred
-                    raise ProcessorError(
-                        f"S3 HEAD request failed with status {e.code}: {e.read().decode()}"
-                    )
+                    raise ProcessorError(f"S3 HEAD request failed: {e}")
 
-            # Upload file using PUT request
+            # Upload file to S3
             self.output(f"Uploading to s3://{bucket}/{s3_key}")
-
-            # Read file content
-            with open(pkg_path, "rb") as f:
-                file_content = f.read()
-
-            # Sign PUT request
-            put_headers = self._aws_sign_v4(
-                "PUT",
-                url,
-                region,
-                "s3",
-                access_key,
-                secret_key,
-                payload=file_content,
-                headers={"Content-Type": "application/octet-stream"},
+            s3_client.upload_file(
+                str(pkg_path),
+                bucket,
+                s3_key,
+                ExtraArgs={"ContentType": "application/octet-stream"},
             )
-
-            # Upload to S3
-            put_request = urllib.request.Request(
-                url, data=file_content, headers=put_headers, method="PUT"
-            )
-
-            try:
-                with urllib.request.urlopen(
-                    put_request, timeout=900, context=self._get_ssl_context()
-                ) as put_response:
-                    if put_response.getcode() not in (200, 201):
-                        raise ProcessorError(
-                            f"S3 upload failed with status {put_response.getcode()}: {put_response.read().decode()}"
-                        )
-            except urllib.error.HTTPError as e:
-                raise ProcessorError(
-                    f"S3 upload failed with status {e.code}: {e.read().decode()}"
-                )
-
             self.output(f"Upload complete: s3://{bucket}/{s3_key}")
             return s3_key
 
-        except (urllib.error.URLError, OSError) as e:
+        except NoCredentialsError:
+            raise ProcessorError(
+                "AWS credentials not found. Please configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
+            )
+        except ClientError as e:
+            raise ProcessorError(f"S3 upload failed: {e}")
+        except Exception as e:
             raise ProcessorError(f"S3 upload failed: {e}")
 
     def _construct_cloudfront_url(self, cloudfront_domain: str, s3_key: str) -> str:
@@ -790,56 +699,30 @@ class FleetImporter(Processor):
         - Keep the N most recent versions based on version sort
         """
         try:
-            # Get AWS credentials
-            access_key, secret_key, region = self._get_aws_credentials()
+            # Get S3 client
+            s3_client = self._get_s3_client()
             prefix = f"software/{software_title}/"
 
             # List all objects for this software title
-            # Note: query parameters will be canonicalized by the signing function
-            list_url = f"https://{bucket}.s3.{region}.amazonaws.com/?list-type=2&prefix={prefix}"
-            list_headers = self._aws_sign_v4(
-                "GET", list_url, region, "s3", access_key, secret_key
-            )
-            list_request = urllib.request.Request(list_url, headers=list_headers)
+            response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
 
-            try:
-                with urllib.request.urlopen(
-                    list_request, timeout=30, context=self._get_ssl_context()
-                ) as list_response:
-                    if list_response.getcode() != 200:
-                        raise ProcessorError(
-                            f"S3 list failed with status {list_response.getcode()}: {list_response.read().decode()}"
-                        )
-                    list_content = list_response.read()
-            except urllib.error.HTTPError as e:
-                raise ProcessorError(
-                    f"S3 list failed with status {e.code}: {e.read().decode()}"
-                )
-
-            # Parse XML response
-            root = ET.fromstring(list_content)
-            ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
-            contents = root.findall("s3:Contents", ns)
-
-            if not contents:
+            if "Contents" not in response:
                 self.output(f"No existing versions found in S3 for {software_title}")
                 return
 
             # Extract version information from S3 keys
             # Key format: software/Title/Title-Version.pkg
             versions = {}
-            for obj in contents:
-                key_elem = obj.find("s3:Key", ns)
-                if key_elem is not None:
-                    key = key_elem.text
-                    # Extract version from filename pattern: Title-Version.pkg
-                    # Match: software/Title/Title-Version.ext
-                    match = re.search(rf"{re.escape(software_title)}-([^/]+)\.", key)
-                    if match:
-                        ver = match.group(1)
-                        if ver not in versions:
-                            versions[ver] = []
-                        versions[ver].append(key)
+            for obj in response["Contents"]:
+                key = obj["Key"]
+                # Extract version from filename pattern: Title-Version.pkg
+                # Match: software/Title/Title-Version.ext
+                match = re.search(rf"{re.escape(software_title)}-([^/]+)\.", key)
+                if match:
+                    ver = match.group(1)
+                    if ver not in versions:
+                        versions[ver] = []
+                    versions[ver].append(key)
 
             self.output(
                 f"Found {len(versions)} version(s) in S3: {list(versions.keys())}"
@@ -879,30 +762,20 @@ class FleetImporter(Processor):
             for ver in versions_to_delete:
                 for key in versions[ver]:
                     self.output(f"Deleting old version from S3: {key}")
-                    delete_url = f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
-                    delete_headers = self._aws_sign_v4(
-                        "DELETE", delete_url, region, "s3", access_key, secret_key
-                    )
-                    delete_request = urllib.request.Request(
-                        delete_url, headers=delete_headers, method="DELETE"
-                    )
                     try:
-                        with urllib.request.urlopen(
-                            delete_request, timeout=30, context=self._get_ssl_context()
-                        ) as delete_response:
-                            if delete_response.getcode() not in (200, 204):
-                                self.output(
-                                    f"Warning: Failed to delete {key}: {delete_response.getcode()}"
-                                )
-                    except urllib.error.HTTPError as e:
-                        self.output(f"Warning: Failed to delete {key}: {e.code}")
+                        s3_client.delete_object(Bucket=bucket, Key=key)
+                    except ClientError as e:
+                        self.output(f"Warning: Failed to delete {key}: {e}")
 
             self.output(
                 f"Cleanup complete. Kept versions: {versions_to_keep}, "
                 f"Deleted versions: {versions_to_delete}"
             )
 
-        except (urllib.error.URLError, urllib.error.HTTPError) as e:
+        except ClientError as e:
+            # Log error but don't fail the entire workflow
+            self.output(f"Warning: S3 cleanup failed: {e}")
+        except Exception as e:
             # Log error but don't fail the entire workflow
             self.output(f"Warning: S3 cleanup failed: {e}")
 
