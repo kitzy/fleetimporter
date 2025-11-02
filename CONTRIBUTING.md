@@ -65,6 +65,18 @@ python3 -m isort --check-only --diff FleetImporter/FleetImporter.py
 python3 -m flake8 FleetImporter/FleetImporter.py
 ```
 
+### Become a Maintainer
+
+I am actively looking for 2-3 additional maintainers to help maintain this repository and ensure it doesn't become dependent on a single person. Maintainers help with:
+
+- Reviewing and merging pull requests
+- Testing new recipes and processor changes
+- Triaging issues and providing support
+- Maintaining code quality and documentation
+- Planning future enhancements
+
+**Interested in becoming a maintainer?** Contact [@kitzy](https://macadmins.slack.com/team/U04QVKUR4) on the [MacAdmins Slack](https://macadmins.org/slack) to discuss. 
+
 ## Submitting Changes
 
 ### Before You Submit
