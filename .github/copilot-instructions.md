@@ -202,6 +202,7 @@ Process:
 ## Common Tasks
 
 ### Creating New Recipes
+- **Follow the Style Guide**: All new recipes must follow the formatting and naming conventions in `CONTRIBUTING.md` - see the "Style Guide" section for complete requirements
 - Copy an existing recipe file (e.g., `GitHub/GithubDesktop.fleet.direct.recipe.yaml` or `GitHub/GithubDesktop.fleet.gitops.recipe.yaml`)
 - Update the `ParentRecipe` to point to upstream AutoPkg recipe
 - Modify processor arguments for your specific Fleet/GitOps configuration

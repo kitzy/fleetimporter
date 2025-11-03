@@ -2,6 +2,10 @@ Description: "Builds GitHub Desktop.pkg using the upstream recipe, then uploads 
 Identifier: com.github.fleet.direct.GithubDesktop
 Input:
   NAME: GitHub Desktop
+  SELF_SERVICE: true
+  CATEGORIES:
+  - Developer tools
+  ICON: GithubDesktop.png
 MinimumVersion: "2.0"
 ParentRecipe: com.github.homebysix.pkg.GitHubDesktop
 Process:
@@ -12,8 +16,7 @@ Process:
     fleet_api_base: "%FLEET_API_BASE%"
     fleet_api_token: "%FLEET_API_TOKEN%"
     team_id: "%FLEET_TEAM_ID%"
-    self_service: true
-    categories:
-    - Developer tools
-    icon: GithubDesktop.png
+    self_service: "%SELF_SERVICE%"
+    categories: "%CATEGORIES%"
+    icon: "%ICON%"
   Processor: com.github.fleet.FleetImporter/FleetImporter

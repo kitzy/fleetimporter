@@ -36,6 +36,82 @@ VendorName/
 └── SoftwareName.png (optional)
 ```
 
+## Style Guide
+
+Recipes in this repository follow consistent formatting and naming conventions to ensure maintainability and predictability.
+
+### Filename
+
+Recipe filenames should follow the pattern:
+- `<SoftwareName>.fleet.direct.recipe.yaml` for direct Fleet API uploads
+- `<SoftwareName>.fleet.gitops.recipe.yaml` for GitOps workflows
+
+Where `<SoftwareName>` matches the `NAME` input variable used throughout the recipe chain.
+
+### Vendor Folder
+
+Each recipe resides in a subfolder named after the software vendor or publisher:
+- Use the official company/vendor name (e.g., `GitHub`, `Anthropic`, `Signal`)
+- Support files (icons, scripts) should use the software name as a prefix
+- No spaces in folder names; use proper capitalization
+
+### Parent Recipe
+
+The recipe's `ParentRecipe` must be:
+- Publicly available via a shared AutoPkg repository
+- Part of the AutoPkg organization or well-established community repos
+- Produces a standard Apple package (`.pkg`) file
+
+### Identifier
+
+Recipe identifiers should follow the pattern:
+- `com.github.fleet.direct.<SoftwareName>` for direct mode
+- `com.github.fleet.gitops.<SoftwareName>` for GitOps mode
+
+### Processing
+
+Recipes should have a single processor stage: `FleetImporter`.
+
+All arguments should be capable of being overridden by `Input` section variables using uppercase names with underscores (e.g., `%FLEET_API_BASE%`, `%SOFTWARE_TITLE%`).
+
+### Required Arguments
+
+All recipes must include these arguments in the `Input` section:
+- `NAME`: Software display name (consistent with parent recipe)
+- Software packaging arguments from parent recipe (`pkg_path`, `version`)
+- Mode-specific configuration (API tokens, S3 settings, etc.)
+
+### Categories
+
+Use only these supported Fleet categories:
+- `Browsers`
+- `Communication`
+- `Developer tools`
+- `Productivity`
+
+### Icons
+
+If including an icon:
+- Must be PNG format
+- Square dimensions between 120x120px and 1024x1024px
+- Less than 100KB filesize (Fleet requirement)
+- Named `<SoftwareName>.png`
+- Referenced in recipe as `icon: <SoftwareName>.png`
+
+### YAML Formatting
+
+- Use 2-space indentation
+- Quote string values consistently
+- Use array format for lists (categories, labels)
+- Validate YAML syntax before submitting
+
+### Linting
+
+All recipes must pass YAML validation:
+```bash
+python3 -c "import yaml; yaml.safe_load(open('Recipe.yaml'))"
+```
+
 ### Enhancing the Processor
 
 Improvements to `FleetImporter.py` are welcome, including:

@@ -2,6 +2,10 @@ Description: "Builds Caffeine.pkg using the upstream recipe, then uploads to Fle
 Identifier: com.github.fleet.direct.Caffeine
 Input:
   NAME: Caffeine
+  SELF_SERVICE: true
+  CATEGORIES:
+  - Productivity
+  ICON: Caffeine.png
 MinimumVersion: "2.0"
 ParentRecipe: com.github.homebysix.pkg.Caffeine
 Process:
@@ -12,8 +16,7 @@ Process:
     fleet_api_base: "%FLEET_API_BASE%"
     fleet_api_token: "%FLEET_API_TOKEN%"
     team_id: "%FLEET_TEAM_ID%"
-    self_service: true
-    categories:
-    - Productivity
-    icon: Caffeine.png
+    self_service: "%SELF_SERVICE%"
+    categories: "%CATEGORIES%"
+    icon: "%ICON%"
   Processor: com.github.fleet.FleetImporter/FleetImporter
