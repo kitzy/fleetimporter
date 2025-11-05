@@ -10,8 +10,8 @@ Run `autopkg repo-add fleet-recipes` to add this repo.
 
 FleetImporter extends AutoPkg to integrate with Fleet's software management. It supports two deployment modes:
 
-- **Direct mode**: Upload packages directly to Fleet via API
-- **GitOps mode**: Upload to S3 and create pull requests for Git-based configuration management
+- **[Direct mode](#direct-mode)**: Upload packages directly to Fleet via API
+- **[GitOps mode](#gitops-mode)**: Upload to S3 and create pull requests for Git-based configuration management
 
 ## Requirements
 
