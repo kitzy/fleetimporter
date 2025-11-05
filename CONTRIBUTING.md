@@ -4,6 +4,20 @@ Thank you for your interest in contributing! Recipe additions and processor enha
 
 ## Ways to Contribute
 
+### Become a Maintainer
+
+I am actively looking for 2-3 additional maintainers to help maintain this repository and ensure it doesn't become dependent on a single person. Maintainers help with:
+
+- Reviewing and merging pull requests
+- Testing new recipes and processor changes
+- Triaging issues and providing support
+- Maintaining code quality and documentation
+- Planning future enhancements
+
+**Interested in becoming a maintainer?** Contact [@kitzy](https://macadmins.slack.com/team/U04QVKUR4) on the [MacAdmins Slack](https://macadmins.org/slack) to discuss. 
+
+---
+
 ### Adding New Recipes
 
 We encourage contributions of AutoPkg recipes for additional macOS software. Each software package should have two recipes:
@@ -78,8 +92,14 @@ All arguments should be capable of being overridden by `Input` section variables
 
 All recipes must include these arguments in the `Input` section:
 - `NAME`: Software display name (consistent with parent recipe)
+- `SELF_SERVICE` must be set to `true`
+- `AUTOMATIC_INSTALL` must be set to `false`
 - Software packaging arguments from parent recipe (`pkg_path`, `version`)
-- Mode-specific configuration (API tokens, S3 settings, etc.)
+- Mode-specific configuration:
+  - **Direct mode**: API tokens, Fleet base URL, team ID
+  - **GitOps mode**: S3 settings, GitHub tokens, repository URL
+    - `FLEET_GITOPS_SOFTWARE_DIR` must be set to `lib/macos/software`
+    - `FLEET_GITOPS_TEAM_YAML_PATH` must be set to `teams/workstations.yml`
 
 ### Categories
 
@@ -140,18 +160,6 @@ python3 -m black --check --diff FleetImporter/FleetImporter.py
 python3 -m isort --check-only --diff FleetImporter/FleetImporter.py
 python3 -m flake8 FleetImporter/FleetImporter.py
 ```
-
-### Become a Maintainer
-
-I am actively looking for 2-3 additional maintainers to help maintain this repository and ensure it doesn't become dependent on a single person. Maintainers help with:
-
-- Reviewing and merging pull requests
-- Testing new recipes and processor changes
-- Triaging issues and providing support
-- Maintaining code quality and documentation
-- Planning future enhancements
-
-**Interested in becoming a maintainer?** Contact [@kitzy](https://macadmins.slack.com/team/U04QVKUR4) on the [MacAdmins Slack](https://macadmins.org/slack) to discuss. 
 
 ## Submitting Changes
 

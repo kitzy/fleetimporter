@@ -3,6 +3,7 @@ Identifier: com.github.fleet.direct.AutoPkg
 Input:
   NAME: AutoPkg
   SELF_SERVICE: true
+  AUTOMATIC_INSTALL: false
   CATEGORIES:
   - Developer tools
 MinimumVersion: "2.3"
@@ -16,5 +17,6 @@ Process:
     fleet_api_token: "%FLEET_API_TOKEN%"
     team_id: "%FLEET_TEAM_ID%"
     self_service: "%SELF_SERVICE%"
+    automatic_install: "%AUTOMATIC_INSTALL%"
     categories: "%CATEGORIES%"
   Processor: com.github.fleet.FleetImporter/FleetImporter

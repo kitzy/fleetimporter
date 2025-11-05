@@ -270,7 +270,36 @@ autopkg verify YourRecipe.recipe.yaml
 
 # Run with maximum verbosity
 autopkg run -vvv YourRecipe.recipe.yaml
+
+# Run style guide compliance tests
+python3 tests/test_style_guide_compliance.py
 ```
+
+## Testing
+
+### Style Guide Compliance
+
+All recipes are validated against style guide requirements defined in [CONTRIBUTING.md](CONTRIBUTING.md). To run the validation tests locally:
+
+```bash
+# Install PyYAML if needed
+python3 -m pip install PyYAML
+
+# Run style guide compliance tests
+python3 tests/test_style_guide_compliance.py
+```
+
+The test validates:
+- ✅ YAML syntax is valid
+- ✅ Required AutoPkg fields present (Description, Identifier, Input, Process)
+- ✅ `SELF_SERVICE` set to `true` in all recipes
+- ✅ `AUTOMATIC_INSTALL` set to `false` in all recipes
+- ✅ `FLEET_GITOPS_SOFTWARE_DIR` set to `lib/macos/software` in GitOps recipes
+- ✅ `FLEET_GITOPS_TEAM_YAML_PATH` set to `teams/workstations.yml` in GitOps recipes
+- ✅ All Process arguments reference Input variables correctly
+- ✅ Filename conventions, vendor folder structure, identifiers, categories, and more
+
+See [tests/README.md](tests/README.md) for more information.
 
 ## Getting help
 
