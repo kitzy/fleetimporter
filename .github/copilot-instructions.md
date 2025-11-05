@@ -4,6 +4,22 @@ This repository contains AutoPkg processors and recipes for Fleet device managem
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
+## Communication Style
+
+### Git Commit Messages and Pull Requests
+- **NEVER use emojis** in commit messages or PR descriptions
+- Use clear, professional language
+- Focus on technical details and implementation specifics
+- When creating PRs, always use `gh pr create --web` to open the browser for final review
+
+### PR Creation Workflow
+1. Create feature branch: `git checkout -b feature-name`
+2. Stage changes: `git add <files>`
+3. Commit with clear message (no emojis): `git commit -m "Description"`
+4. Push branch: `git push -u origin feature-name`
+5. Create PR with `--web` flag: `gh pr create --title "Title" --body "Description" --web`
+6. The `--web` flag opens the browser for final review before submission
+
 ## Working Effectively
 
 ### Bootstrap and Setup (macOS required for AutoPkg)
