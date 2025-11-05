@@ -10,7 +10,7 @@ Input:
   CATEGORIES:
   - Browsers
 MinimumVersion: "2.3"
-ParentRecipe: com.github.autopkg.pkg.Firefox_EN
+ParentRecipe: com.github.rtrouton.pkg.Firefox
 Process:
 - Arguments:
     pkg_path: "%pkg_path%"
