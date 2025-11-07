@@ -24,6 +24,10 @@ Input:
   labels_include_any: []
   labels_exclude_any: []
 
+  # Optional: Auto-update policy automation
+  AUTO_UPDATE_ENABLED: false
+  AUTO_UPDATE_POLICY_NAME: "autopkg-auto-update-%NAME%"
+
   # Mode selector
   gitops_mode: false
 
@@ -47,6 +51,10 @@ Process:
     uninstall_script: "%UNINSTALL_SCRIPT%"
     pre_install_query: "%PRE_INSTALL_QUERY%"
     post_install_script: "%POST_INSTALL_SCRIPT%"
+
+    # Optional: Auto-update policy automation
+    auto_update_enabled: "%AUTO_UPDATE_ENABLED%"
+    auto_update_policy_name: "%AUTO_UPDATE_POLICY_NAME%"
 
     # GitOps-specific options
     gitops_software_dir: "%FLEET_GITOPS_SOFTWARE_DIR%"
