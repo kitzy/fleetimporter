@@ -154,22 +154,17 @@ FleetImporter automatically extracts and uploads application icons from `.pkg` f
 
 ## Auto-update policy automation
 
-FleetImporter can automatically create Fleet policies that detect outdated software versions and trigger automatic updates via self-service installation. When enabled, a policy is created for each software package that:
+FleetImporter can automatically create Fleet policies that detect outdated software versions and trigger automatic updates via policy automation. When enabled, a policy is created for each software package that:
 
 1. **Detects outdated versions**: Uses osquery to find hosts running any version except the latest
 2. **Triggers installation**: Automatically installs the updated package when policy fails
-3. **Works in both modes**: Supports direct API mode and GitOps mode
 
 ### Enabling auto-update policies
 
-Auto-update policies are **disabled by default** for backward compatibility. Enable them via recipe overrides or AutoPkg preferences:
+Auto-update policies are **disabled by default** for backward compatibility. Enable them via recipe overrides:
 
 ```bash
-# Option 1: Enable via AutoPkg preferences (applies to all recipes)
-defaults write com.github.autopkg AUTO_UPDATE_ENABLED true
-defaults write com.github.autopkg AUTO_UPDATE_POLICY_NAME "autopkg-auto-update-%NAME%"
-
-# Option 2: Enable in a recipe override (per-recipe control)
+# Enable in a recipe override (per-recipe control)
 autopkg make-override VendorName/SoftwareName.fleet.recipe.yaml
 # Edit the override to set AUTO_UPDATE_ENABLED: true
 autopkg run SoftwareName.fleet.recipe.yaml
@@ -181,7 +176,9 @@ When `AUTO_UPDATE_ENABLED` is set to `true`, FleetImporter:
 
 1. **Builds version query**: Creates an osquery SQL query that detects hosts running outdated versions:
    ```sql
-   SELECT * FROM programs WHERE name = 'GitHub Desktop' AND version != '3.3.12'
+  SELECT 1 WHERE EXISTS (
+    SELECT 1 FROM apps WHERE bundle_identifier = '<YOUR_APP_BUNDLE_ID>' AND version_compare(bundle_short_version, '<REQUIRED_VERSION>') >= 0
+  );
    ```
 
 2. **Creates policy** (Direct mode): Uses Fleet API to create or update a policy with:
@@ -190,18 +187,7 @@ When `AUTO_UPDATE_ENABLED` is set to `true`, FleetImporter:
    - Link to install package automatically on policy failure
    - Platform targeting (macOS only)
 
-3. **Creates policy YAML** (GitOps mode): Writes policy definition to `lib/policies/` directory:
-   ```yaml
-   apiVersion: v1
-   kind: policy
-   spec:
-     name: autopkg-auto-update-github-desktop
-     query: SELECT * FROM programs WHERE name = 'GitHub Desktop' AND version != '3.3.12'
-     description: Auto-update policy for GitHub Desktop (version 3.3.12)...
-     resolution: Install GitHub Desktop 3.3.12 via Fleet self-service
-     platform: darwin
-     critical: false
-   ```
+3. **Creates policy YAML** (GitOps mode): Writes policy definition to `lib/policies/` 
 
 ### Policy naming
 
@@ -237,39 +223,6 @@ All software titles and versions are automatically escaped to prevent SQL inject
    - GitOps mode: Policy scope determined by GitOps repository structure
 
 5. **Idempotency**: Existing policies with the same name are updated (not duplicated) when recipes run again
-
-### Example: Enabling auto-update for a specific recipe
-
-```yaml
-# Create override: autopkg make-override GitHub/GithubDesktop.fleet.recipe.yaml
-
-Description: "Builds GitHub Desktop.pkg and uploads to Fleet with auto-update policy"
-Identifier: com.github.fleet.GithubDesktop
-MinimumVersion: "2.3"
-ParentRecipe: com.github.homebysix.pkg.GitHubDesktop
-
-Input:
-  NAME: GitHub Desktop
-  self_service: true
-  automatic_install: false
-  categories:
-  - Developer tools
-  
-  # Enable auto-update policy automation
-  AUTO_UPDATE_ENABLED: true
-  AUTO_UPDATE_POLICY_NAME: "autopkg-auto-update-%NAME%"
-  
-  gitops_mode: false
-
-Process:
-- Processor: com.github.fleet.FleetImporter/FleetImporter
-  # Arguments inherited from recipe
-```
-
-After running this recipe, Fleet will create a policy that:
-- Fails on hosts running any version except the latest
-- Automatically installs the latest version via self-service
-- Updates the version check each time the recipe runs with a new version
 
 ---
 
